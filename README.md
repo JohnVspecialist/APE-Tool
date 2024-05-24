@@ -70,3 +70,83 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 Contact
 For any questions or inquiries, please contact John Vaina at JohnVspecialist@gmail.com
+
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+from flask import Flask, request, jsonify
+from transformers import GPT2Tokenizer, GPT2LMHeadModel
+import openai
+import tensorrt as trt
+import nemo.collections.nlp as nemo_nlp
+from langchain.llms import LocalLangModel
+from langchain.agents import Agent
+
+# Configuration
+OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"
+openai.api_key = OPENAI_API_KEY
+
+# Define Agent 4454 using 4:4/5:4 Framework
+class Agent4454:
+    def __init__(self):
+        self.sequence_44_steps = [
+            "If the problem is technical, then suggest a solution.",
+            "If the problem is conceptual, then clarify the concept.",
+            "If the problem is practical, then offer practical advice.",
+            "If the problem is theoretical, then discuss theoretical aspects."
+        ]
+        self.sequence_54_steps = [
+            "If the user is confused, then provide a simple explanation.",
+            "If the user is inquisitive, then provide detailed information.",
+            "If the user is in a hurry, then provide a summary.",
+            "If the user is skeptical, then provide evidence or examples.",
+            "If the user is undecided, then provide a balanced view."
+        ]
+        self.tokenizer = GPT2Tokenizer.from_pretrained("gpt2")
+        self.model = GPT2LMHeadModel.from_pretrained("gpt2")
+
+    def logical_deduction(self, input_text):
+        # Generate logical deduction results based on the 4:4 and 5:4 sequences
+        result = []
+        for i in range(5):  # 5 cycles for 4:4 sequence
+            step_prompt = self.sequence_44_steps[i % 4] + " " + input_text
+            inputs = self.tokenizer.encode(step_prompt, return_tensors="pt")
+            outputs = self.model.generate(inputs, max_length=50)
+            result.append(self.tokenizer.decode(outputs[0], skip_special_tokens=True))
+        for i in range(4):  # 4 cycles for 5:4 sequence
+            step_prompt = self.sequence_54_steps[i % 5] + " " + input_text
+            inputs = self.tokenizer.encode(step_prompt, return_tensors="pt")
+            outputs = self.model.generate(inputs, max_length=50)
+            result.append(self.tokenizer.decode(outputs[0], skip_special_tokens=True))
+        return result
+
+    def evaluate(self, input_text):
+        # Evaluate results
+        return self.logical_deduction(input_text)  # Simplified for illustration
+
+    def expand(self, input_text):
+        # Expand results
+        return self.evaluate(input_text)  # Simplified for illustration
+
+    def process_input(self, input_text):
+        # Complete processing by looping through the framework
+        deduction = self.logical_deduction(input_text)
+        evaluation = self.evaluate(input_text)
+        expansion = self.expand(input_text)
+        return {
+            "deduction": deduction,
+            "evaluation": evaluation,
+            "expansion": expansion
+        }
+
+app = Flask(__name__)
+agent_4454 = Agent4454()
+
+@app.route('/ask', methods=['POST'])
+def ask():
+    data = request.json
+    input_text = data.get('input_text', '')
+    response = agent_4454.process_input(input_text)
+    return jsonify(response)
+
+if __name__ == '__main__':
+    app.run(debug=True)
