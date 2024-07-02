@@ -17,7 +17,7 @@ Clone the repository:
 
 bash
 Copy code
-git clone https://github.com/yourusername/adversarial-prompt-engineering-security-tool.git
+git clone https://github.com/JohnVspecialist/adversarial-prompt-engineering-security-tool.git
 cd adversarial-prompt-engineering-security-tool
 Install the required libraries:
 
