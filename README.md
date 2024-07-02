@@ -15,10 +15,6 @@ Follow these steps to set up the project on your local machine:
 
 Clone the repository:
 
-bash
-Copy code
-git clone https://github.com/JohnVspecialist/adversarial-prompt-engineering-security-tool.git
-cd adversarial-prompt-engineering-security-tool
 Install the required libraries:
 
 bash
@@ -222,3 +218,101 @@ def ask():
 
 if __name__ == '__main__':
     app.run(debug=True)
+------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+from flask import Flask, request, jsonify
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+from concurrent.futures import ThreadPoolExecutor
+import logging
+from functools import lru_cache
+import os
+
+# Set up logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+class EnhancedAgent:
+    def __init__(self):
+        self.sequences = {
+            "problem_solving": [
+                "Analyze the core issue and suggest a comprehensive solution.",
+                "Break down the concept into easily understandable components.",
+                "Provide actionable steps and best practices for implementation.",
+                "Explore theoretical implications and potential future developments."
+            ],
+            "user_focused": [
+                "Offer a concise explanation suitable for beginners.",
+                "Provide in-depth analysis with relevant examples and case studies.",
+                "Summarize key points for quick understanding.",
+                "Present empirical evidence and expert opinions to support claims.",
+                "Compare different perspectives to provide a balanced view."
+            ]
+        }
+        model_name = "gpt2-medium"  # Upgraded from base GPT-2
+        self.tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self.model = AutoModelForCausalLM.from_pretrained(model_name)
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+        logging.info(f"Enhanced model {model_name} loaded on device: {self.device}")
+        self.executor = ThreadPoolExecutor(max_workers=2)
+
+    @lru_cache(maxsize=100)
+    def generate_response(self, prompt, max_length=100):
+        inputs = self.tokenizer.encode(prompt, return_tensors="pt").to(self.device)
+        with torch.no_grad():
+            outputs = self.model.generate(
+                inputs, 
+                max_length=max_length, 
+                num_return_sequences=1, 
+                no_repeat_ngram_size=2, 
+                top_k=50, 
+                top_p=0.95, 
+                temperature=0.7
+            )
+        return self.tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    def process_sequence(self, input_text, sequence_key):
+        sequence = self.sequences[sequence_key]
+        futures = [
+            self.executor.submit(self.generate_response, f"{step} Context: {input_text}")
+            for step in sequence
+        ]
+        return [future.result() for future in futures]
+
+    def process_input(self, input_text):
+        problem_solving = self.process_sequence(input_text, "problem_solving")
+        user_focused = self.process_sequence(input_text, "user_focused")
+        
+        # Combine and summarize results
+        combined_response = " ".join(problem_solving + user_focused)
+        summary = self.generate_response(f"Summarize the key points: {combined_response}", max_length=150)
+        
+        return {
+            "problem_solving": problem_solving,
+            "user_focused": user_focused,
+            "summary": summary
+        }
+
+app = Flask(__name__)
+agent = EnhancedAgent()
+
+@app.route('/ask', methods=['POST'])
+def ask():
+    try:
+        data = request.json
+        if not data or 'input_text' not in data:
+            return jsonify({"error": "Invalid input. 'input_text' is required."}), 400
+        
+        input_text = data['input_text']
+        if not input_text or not isinstance(input_text, str):
+            return jsonify({"error": "Invalid input_text. Must be a non-empty string."}), 400
+
+        response = agent.process_input(input_text)
+        return jsonify(response)
+    except Exception as e:
+        logging.exception("An error occurred while processing the request")
+        return jsonify({"error": "An internal server error occurred."}), 500
+
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=False)
